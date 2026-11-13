@@ -1,0 +1,8 @@
+{
+  "name": "vtt-ffrpg",
+  "version": "1.0.0",
+  "description": "VTT multiplayer básico para FFRPG 3e",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "ws": "^8.18.0" }
+}

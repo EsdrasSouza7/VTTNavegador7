@@ -1,0 +1,2240 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VTT FFRPG 3e</title>
+    <style>
+      /* ===== TEMA GERAL ===== */
+      :root {
+        --bg: #0b1230;
+        --panel: #121c45;
+        --panel2: #1a2760;
+        --line: #3b4a9a;
+        --text: #e8ecff;
+        --gold: #e8c66a;
+        --hp: #d9534f;
+        --mp: #4a90e2;
+        --xp: #8bc34a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        height: 100vh;
+        display: grid;
+        grid-template-columns: 1fr 340px;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px/1.4 Georgia,
+          serif;
+        overflow: hidden;
+      }
+      #stage {
+        position: relative;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      #viewbtns {
+        position: absolute;
+        left: 8px;
+        bottom: 8px;
+        display: flex;
+        gap: 4px;
+      }
+      aside {
+        background: var(--panel);
+        border-left: 2px solid var(--line);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      #tabs {
+        display: flex;
+      }
+      #tabs button {
+        flex: 1;
+        border-radius: 0;
+        border: 0;
+        border-bottom: 2px solid var(--line);
+        padding: 9px;
+      }
+      #tabs button.on {
+        border-bottom-color: var(--gold);
+        color: var(--gold);
+      }
+      .tab {
+        display: none;
+        overflow-y: auto;
+        padding: 10px;
+        flex: 1;
+      }
+      .tab.on {
+        display: block;
+      }
+      h3 {
+        margin: 12px 0 6px;
+        color: var(--gold);
+        font-weight: normal;
+        border-bottom: 1px solid var(--line);
+      }
+      button,
+      input,
+      select,
+      textarea {
+        background: var(--panel2);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 5px 8px;
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--gold);
+      }
+      button:disabled,
+      input:disabled {
+        opacity: 0.6;
+      }
+      input[type="number"] {
+        width: 64px;
+      }
+      .row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin: 4px 0;
+        align-items: center;
+      }
+      #log {
+        height: 130px;
+        overflow-y: auto;
+        background: #0008;
+        padding: 6px;
+        border-radius: 4px;
+        font-size: 13px;
+      }
+      .gm-only {
+        display: none;
+      }
+      /* ===== BARRA DE TURNOS (compacta) ===== */
+      #turns {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        background: var(--panel2);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1px 6px 1px 1px;
+        font-size: 11px;
+      }
+      .chip.cur {
+        border-color: var(--gold);
+        background: #3a3470;
+      }
+      .chip img,
+      .chip .ph {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: #556;
+      }
+      .chip button {
+        padding: 0 3px;
+        font-size: 10px;
+        border: 0;
+        background: none;
+      }
+      /* ===== JANELA DE COMBATE (iniciativa + buffs/debuffs) — personalize aqui ===== */
+      #cwin { position: absolute; top: 8px; right: 8px; width: 320px; display: none; flex-direction: column;
+        background: var(--panel); border: 2px solid var(--line); border-radius: 8px; z-index: 5;
+        box-shadow: 0 4px 16px #000a; font-size: 12px; }
+      #cw-head { display: flex; align-items: center; gap: 6px; padding: 5px 8px; cursor: move; user-select: none;
+        background: var(--panel2); border-radius: 6px 6px 0 0; color: var(--gold); }
+      #cw-title { flex: 1; font-weight: bold; }
+      #cw-head button { padding: 0 8px; }
+      #cw-body { padding: 6px; overflow-y: auto; max-height: 62vh; }
+      #cw-phases { display: flex; gap: 3px; margin-bottom: 5px; }
+      .ph-pill { flex: 1; text-align: center; padding: 2px; border: 1px solid var(--line); border-radius: 10px; opacity: .55; font-size: 11px; }
+      .ph-pill.on { opacity: 1; border-color: var(--gold); color: var(--gold); background: #3a3470; }
+      #cw-ctrl { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+      #cw-ctrl button, .cwform button { padding: 3px 7px; font-size: 12px; }
+      #cw-tabs { display: flex; margin-bottom: 6px; }
+      #cw-tabs button { flex: 1; border-radius: 0; border: 0; border-bottom: 2px solid var(--line); padding: 4px; }
+      #cw-tabs button.on { border-bottom-color: var(--gold); color: var(--gold); }
+      .crow { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 4px; margin: 3px 0; }
+      .crow.cur { border-color: var(--gold); box-shadow: 0 0 6px #e8c66a88; }
+      .cmain { display: flex; align-items: center; gap: 5px; }
+      .cmain img, .crow .ph { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; background: #556; flex: none; }
+      .cname { flex: 1; min-width: 0; line-height: 1.15; } .cname small { display: block; opacity: .7; font-size: 10px; }
+      .initin { width: 46px; padding: 2px 4px; } .cmain label { display: flex; align-items: center; gap: 1px; font-size: 11px; }
+      .cmain button { padding: 1px 5px; }
+      .badges { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+      .cweff { padding: 0 6px; border-radius: 9px; font-size: 10px; }
+      .cweff.buff, .cwfx.buff { background: #1f6b3a; } .cweff.debuff, .cwfx.debuff { background: #7a2630; }
+      .cwfx { display: flex; justify-content: space-between; align-items: center; padding: 2px 6px; border-radius: 4px; margin-top: 3px; }
+      .cwfx .tm { display: flex; align-items: center; gap: 3px; } .cwfx button { padding: 0 5px; }
+      .cwform { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+      .cwform input[type=number] { width: 48px; } #cw-name { flex: 1; min-width: 90px; }
+      /* ===== LISTA DE FICHAS ===== */
+      .scard {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        background: var(--panel2);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 6px;
+        margin: 5px 0;
+      }
+      .scard img,
+      .scard .ph {
+        width: 44px;
+        height: 44px;
+        border-radius: 6px;
+        object-fit: cover;
+        background: #445;
+      }
+      .scard .info {
+        flex: 1;
+        min-width: 0;
+      }
+      .scard small {
+        opacity: 0.7;
+      }
+      .scard.onmap {
+        border-color: var(--gold);
+      }
+      /* ===== ESTILO DA FICHA (POPUP) — personalize aqui ===== */
+      #modal {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: #000a;
+        z-index: 20;
+        align-items: center;
+        justify-content: center;
+      }
+      .sheet {
+        width: min(720px, 94vw);
+        max-height: 92vh;
+        overflow-y: auto;
+        background: var(--panel);
+        border: 2px solid var(--accent, var(--gold));
+        border-radius: 10px;
+        padding: 14px;
+        box-shadow: 0 0 30px #000;
+      }
+      .sh-head {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      .portrait {
+        width: 120px;
+        height: 120px;
+        flex: none;
+        border-radius: 10px;
+        border: 2px solid var(--accent);
+        background: #0006;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        text-align: center;
+      }
+      .portrait img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .sh-info {
+        flex: 1;
+      }
+      .big {
+        font-size: 20px;
+        width: 100%;
+        color: var(--gold);
+      }
+      .x {
+        margin-left: auto;
+      }
+      .sec {
+        margin-top: 12px;
+      }
+      .sec h4 {
+        margin: 0 0 6px;
+        color: var(--gold);
+        font-weight: normal;
+        border-bottom: 1px solid var(--line);
+      }
+      .sheet-tabs {
+        display: flex;
+        gap: 4px;
+        margin-top: 12px;
+      }
+      .sheet-tabs button {
+        flex: 1;
+        padding: 5px;
+        font-size: 12px;
+      }
+      .sheet-tabs button.on {
+        border-color: var(--gold);
+        color: var(--gold);
+      }
+      .sheet-tab-panel {
+        display: none;
+      }
+      .sheet-tab-panel.on {
+        display: block;
+      }
+      .advantages-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .advantage-balance {
+        margin: 8px 0;
+        color: var(--gold);
+        font-weight: bold;
+      }
+      @media (max-width: 560px) {
+        .advantages-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .fgrid {
+        display: grid;
+        gap: 8px;
+      }
+      .fgrid label {
+        display: flex;
+        flex-direction: column;
+        font-size: 12px;
+        gap: 2px;
+      }
+      .fgrid .ctl {
+        display: flex;
+        gap: 4px;
+      }
+      .fgrid input[type="number"] {
+        width: 100%;
+      }
+      .fgrid input,
+      .fgrid textarea {
+        width: 100%;
+      }
+      .bar {
+        height: 8px;
+        background: #0006;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 2px 0;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+      }
+      #login {
+        position: fixed;
+        inset: 0;
+        background: var(--bg);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+        justify-content: center;
+        z-index: 30;
+      }
+      @media (max-width: 800px) {
+        body {
+          grid-template-columns: 1fr;
+          grid-template-rows: 50vh 1fr;
+        }
+      }
+      .table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+      }
+
+      .attributes-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: center;
+      }
+
+      .attributes-table th {
+        padding: 8px 4px;
+        color: white;
+        font-size: 12px;
+      }
+
+      .attributes-table td {
+        padding: 5px 3px;
+        border-bottom: 1px solid #444;
+      }
+
+      .attributes-table .attribute-name {
+        font-weight: bold;
+        text-align: left;
+        padding-left: 10px;
+      }
+
+      .attributes-table input {
+        width: 55px;
+        max-width: 100%;
+        box-sizing: border-box;
+        text-align: center;
+      }
+
+      .attributes-table button {
+        cursor: pointer;
+      }
+      /*  ////////////////////////////////////////////////////// */
+      .add-table-row {
+        margin-top: 8px;
+        width: 100%;
+        padding: 8px;
+        border: 1px dashed var(--accent);
+        border-radius: 5px;
+        background: transparent;
+        color: var(--accent);
+        cursor: pointer;
+      }
+
+      .add-table-row:hover {
+        background: var(--accent);
+        color: white;
+      }
+
+      .attributes-table td input {
+        width: 100%;
+        min-width: 45px;
+        box-sizing: border-box;
+      }
+
+      .attributes-table td.table-wide textarea {
+        display: block;
+        width: 100%;
+        height: 33px;
+        resize: vertical;
+        text-align: left;
+      }
+
+      .table-share {
+        display: flex;
+        align-items: stretch;
+        gap: 6px;
+      }
+
+      .table-share textarea {
+        flex: 1;
+      }
+
+      .attributes-table td button {
+        border: none;
+        background: transparent;
+        color: #e66;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="login">
+      <h1 style="color: var(--gold)">VTT FFRPG 3e</h1>
+      <input id="l-name" placeholder="Seu nome" />
+      <select
+        id="l-role"
+        onchange="
+          el('l-pass').style.display = this.value === 'gm' ? '' : 'none'
+        "
+      >
+        <option value="player">Jogador</option>
+        <option value="gm">Mestre</option>
+      </select>
+      <input
+        id="l-pass"
+        type="password"
+        placeholder="Senha do mestre"
+        style="display: none"
+      />
+      <button onclick="join()">Entrar</button>
+      <div id="l-err" style="color: var(--hp)"></div>
+    </div>
+
+    <div id="stage">
+      <canvas id="c"></canvas>
+      <div id="viewbtns">
+        <button onclick="fitView()">Ajustar visão</button
+        ><button onclick="zoomBy(1.25)">＋</button
+        ><button onclick="zoomBy(0.8)">－</button>
+      </div>
+
+      <div id="cwin">
+        <div id="cw-head">
+          <span id="cw-title">⚔ Combate</span>
+          <button id="cw-min" onclick="cwToggle()" title="Minimizar">–</button>
+        </div>
+        <div id="cw-body">
+          <div id="cw-phases"></div>
+          <div id="cw-ctrl"></div>
+          <div id="cw-tabs">
+            <button id="cw-t-init" class="on" onclick="cwShow('init')">Iniciativa</button
+            ><button id="cw-t-eff" onclick="cwShow('eff')">Buffs/Debuffs</button>
+          </div>
+          <div id="cw-init"><div id="cw-list"></div></div>
+          <div id="cw-eff" style="display: none">
+            <div class="cwform">
+              <select id="cw-target"></select>
+              <input id="cw-name" list="cw-names" placeholder="Efeito (ex.: Haste)" oninput="guessKind()" />
+              <datalist id="cw-names">
+                <option value="Haste"></option><option value="Protect"></option><option value="Shell"></option>
+                <option value="Regen"></option><option value="Reflect"></option><option value="Berserk"></option>
+                <option value="Slow"></option><option value="Poison"></option><option value="Blind"></option>
+                <option value="Silence"></option><option value="Sleep"></option><option value="Stop"></option>
+                <option value="Confuse"></option><option value="Bio"></option>
+              </datalist>
+              <select id="cw-kind"><option value="buff">▲ Buff</option><option value="debuff">▼ Debuff</option></select>
+              Timer <input id="cw-timer" type="number" value="4" min="1" max="99" />
+              <button onclick="addEffect()">Aplicar</button>
+            </div>
+            <div id="cw-efflist"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <aside>
+      <div id="tabs">
+        <button class="on" onclick="tab('main')">Mesa</button
+        ><button onclick="tab('sheets')">Fichas</button>
+      </div>
+
+      <!-- ===== ABA PRINCIPAL ===== -->
+      <div class="tab on" id="tab-main">
+        <h3>Dados</h3>
+        <div class="row">
+          <button onclick="rollN(100)">d100</button>
+          <button onclick="rollN(20)">d20</button>
+          <button onclick="rollN(12)">d12</button>
+          <button onclick="rollN(10)">d10</button>
+          <button onclick="rollN(8)">d8</button>
+          <button onclick="rollN(6)">d6</button>
+          <button onclick="rollN(4)">d4</button>
+        </div>
+        <div class="row">
+          <input id="formula" value="2d6+3" size="8" /><button
+            onclick="rollFormula()"
+          >
+            Rolar
+          </button>
+        </div>
+        <div id="log"></div>
+
+        <div class="gm-only" id="gm-panel">
+          <h3>Mapa</h3>
+          <div class="row">
+            <button onclick="pickMap()">Enviar imagem</button
+            ><button onclick="fitMap()">Caber na tela</button
+            ><button onclick="act({ t: 'map', scale: 1 })">
+              Tamanho original
+            </button>
+          </div>
+          <div class="row">
+            Zoom da imagem
+            <input
+              id="m-scale"
+              type="range"
+              min="5"
+              max="400"
+              oninput="act({ t: 'map', scale: this.value / 100 })"
+            />
+            <span id="m-scale-v"></span>
+          </div>
+          <div class="row">
+            Posição da imagem X
+            <input
+              id="m-ox"
+              type="number"
+              onchange="act({ t: 'map', ox: this.value })"
+            />
+            Y
+            <input
+              id="m-oy"
+              type="number"
+              onchange="act({ t: 'map', oy: this.value })"
+            />
+          </div>
+          <h3>Grade</h3>
+          <div class="row">
+            <label
+              ><input
+                id="g-show"
+                type="checkbox"
+                onchange="act({ t: 'grid', show: this.checked })"
+              />
+              Mostrar</label
+            >
+            Cor
+            <input
+              id="g-color"
+              type="color"
+              onchange="act({ t: 'grid', color: this.value })"
+            />
+            Opacidade
+            <input
+              id="g-op"
+              type="range"
+              min="0"
+              max="100"
+              oninput="act({ t: 'grid', opacity: this.value / 100 })"
+              style="width: 70px"
+            />
+          </div>
+          <div class="row">
+            Tamanho (px)
+            <input
+              id="g-size"
+              type="number"
+              step="0.5"
+              onchange="act({ t: 'grid', size: this.value })"
+            />
+            Desloc. X
+            <input
+              id="g-ox"
+              type="number"
+              onchange="act({ t: 'grid', ox: this.value })"
+            />
+            Y
+            <input
+              id="g-oy"
+              type="number"
+              onchange="act({ t: 'grid', oy: this.value })"
+            />
+          </div>
+          <div class="row">
+            A imagem tem
+            <input id="g-cols" type="number" value="20" min="1" /> quadrados de
+            largura <button onclick="calibrate()">Ajustar grade</button>
+          </div>
+          <small
+            >Dica: "Ajustar grade" casa a grade com o mapa, supondo que ela
+            começa no canto da imagem. Depois refine com o deslocamento.</small
+          >
+          <h3>Névoa de Guerra</h3>
+          <div class="row">
+            <button id="fog-paint" onclick="setFogTool('paint')">Pintar névoa</button>
+            <button id="fog-reveal" onclick="setFogTool('reveal')">Revelar</button>
+            <button onclick="setFogTool(null)">Mover mapa / tokens</button>
+          </div>
+          <div class="row">
+            <button onclick="clearFog()">Limpar toda a névoa</button>
+          </div>
+          <small>Escolha Pintar névoa ou Revelar e arraste sobre os quadrados. A névoa fica preta para os jogadores; o mestre continua vendo o mapa por baixo.</small>
+        </div>
+      </div>
+
+      <!-- ===== ABA DE FICHAS ===== -->
+      <div class="tab" id="tab-sheets">
+        <div class="row">
+          <button onclick="act({ t: 'newSheet' })">+ Nova ficha</button>
+        </div>
+        <div id="sheetlist"></div>
+      </div>
+    </aside>
+
+    <div
+      id="modal"
+      onmousedown="if (event.target === this) closeSheet();"
+    ></div>
+
+    <script>
+      function TabelaArmMArm(valor) {
+        const score = Number(valor) || 0;
+        if (score <= 0) return 1;
+        return 1 + Math.min(15, Math.ceil(score / 2)) * 0.05;
+      }
+      /* =====================================================================
+      CONFIGURAÇÃO DO SISTEMA — EDITE AQUI
+      (confirme os atributos e as fórmulas com o livro do FFRPG 3e)
+      ===================================================================== */
+      // Layout da ficha. Cada seção tem título, nº de colunas e campos.
+      const SHEET_LAYOUT = [
+        {
+          title: "Identidade",
+          type: "unic",
+          cols: 5,
+          fields: [
+            { key: "race", label: "Raça", type: "text" },
+            { key: "class", label: "Classe", type: "text" },
+            { key: "job", label: "Job", type: "text" },
+            {
+              key: "level",
+              label: "Nível",
+              type: "number",
+              default: 1,
+            },
+            { key: "gil", label: "Gil", type: "number", default: 0 },
+          ],
+        },
+        {
+          title: "Atributos",
+          type: "fixedTable",
+          key: "attributes",
+          defaultRows: [
+            { valor: 1, max: 0, teste: 0, bonus: 0 },
+            { valor: 1, max: 0, teste: 0, bonus: 0 },
+            { valor: 1, max: 0, teste: 0, bonus: 0 },
+            { valor: 1, max: 0, teste: 0, bonus: 0 },
+            { valor: 1, max: 0, teste: 0, bonus: 0 },
+            { valor: 1, max: 0, teste: 0, bonus: 0 },
+          ],
+          slots: ["FOR", "VIT", "AGI", "VEL", "MAG", "ESP"],
+          columns: [
+            {
+              key: "valor",
+              label: "Valor",
+              type: "number",
+              default: 1,
+              min: 1,
+              max: 30,
+            },
+            { key: "max", label: "Máximo", type: "number", default: 1 },
+            {
+              key: "teste",
+              label: "Teste",
+              type: "number",
+              formula: (row) => (Number(row.valor) || 0) * 3 + 10,
+            },
+            {
+              key: "bonus",
+              label: "Bonus/Padrão(Atualizar)",
+              type: "number",
+              default: 0,
+            },
+          ],
+        },
+        {
+          title: "Estaticas",
+          type: "unic",
+          cols: 3,
+          fields: [
+            {
+              key: "BAJ",
+              label: "Bônus Ataque do Job",
+              type: "number",
+              default: 0,
+            },
+            {
+              key: "EVA",
+              label: "Evação (EVA)",
+              type: "number",
+              formula: (data) => {
+                const attributes = data.attributes || [];
+                const agility = Number(attributes[2]?.valor) || 0;
+                const speed = Number(attributes[3]?.valor) || 0;
+
+                const armorEvasion = (data.armor || []).reduce(
+                  (total, armor) => total + (Number(armor.eva) || 0),
+                  0,
+                );
+
+                return agility + speed + armorEvasion;
+              },
+            },
+            {
+              key: "EVAMAG",
+              label: "Evação Mágica (EVA. M.)",
+              type: "number",
+              formula: (data) => {
+                const attributes = data.attributes || [];
+                const espirito = Number(attributes[5]?.valor) || 0;
+                const magia = Number(attributes[4]?.valor) || 0;
+
+                const armorMagicEvasion = (data.armor || []).reduce(
+                  (total, armor) => total + (Number(armor.evamag) || 0),
+                  0,
+                );
+
+                return espirito + magia + armorMagicEvasion;
+              },
+            },
+            {
+              key: "WS",
+              label: "Weapon Skill (WS Atual)",
+              type: "number",
+              default: 0,
+            },
+            {
+              key: "ARM",
+              label: "Armadura (ARM)",
+              type: "number",
+              formula: (data) => {
+                const vitality = Number(data.attributes?.[1]?.valor) || 0;
+                const armor = (data.armor || []).reduce(
+                  (total, armor) => total + (Number(armor.arm) || 0),
+                  0,
+                );
+                return Math.round(armor * TabelaArmMArm(vitality));
+              },
+            },
+            {
+              key: "ARMAG",
+              label: "Armadura Mágica (ARM. M.)",
+              type: "number",
+              formula: (data) => {
+                const espirito = Number(data.attributes?.[5]?.valor) || 0;
+                const armorMagic = (data.armor || []).reduce(
+                  (total, armor) => total + (Number(armor.armag) || 0),
+                  0,
+                );
+                return Math.round(armorMagic * TabelaArmMArm(espirito));
+              },
+            },
+            {
+              key: "PREC",
+              label: "Precisão (PREC)",
+              type: "number",
+              formula: (data) => {
+                const level = Number(data.level) || 0;
+                const agility = Number(data.attributes?.[2]?.valor) || 0;
+                const jobBonus = Number(data.BAJ) || 0;
+                const weaponSkill = Number(data.WS) || 0;
+
+                return level + agility * 2 + jobBonus + weaponSkill;
+              },
+            },
+            {
+              key: "PRECMA",
+              label: "Precisão Mágica (PREC. M.)",
+              type: "number",
+              formula: (data) => {
+                const magia = Number(data.attributes?.[4]?.valor) || 0;
+                const nivel = Number(data.level) || 0;
+
+                return nivel + magia * 2 + 100;
+              },
+            },
+            {
+              key: "DEX",
+              label: "Destreza (DEX)",
+              type: "number",
+              formula: (data) => {
+                const agilidade = Number(data.attributes?.[2]?.valor) || 0;
+                const nivel = Number(data.level) || 0;
+
+                return nivel + agilidade * 2 + 50;
+              },
+            },
+            {
+              key: "MNT",
+              label: "Mente (MNT)",
+              type: "number",
+              formula: (data) => {
+                const magia = Number(data.attributes?.[4]?.valor) || 0;
+                const nivel = Number(data.level) || 0;
+
+                return nivel + magia * 2 + 50;
+              },
+            },
+            {
+              key: "DV",
+              label: "Dano de Vida (DV)",
+              type: "number",
+              default: 0,
+            },
+            {
+              key: "DM",
+              label: "Dano de Magia (DM)",
+              type: "number",
+              default: 0,
+            },
+            { key: "EXP", label: "Expert (EXP)", type: "number", default: 0 },
+          ],
+        },
+        {
+          title: "Armas",
+          type: "fixedTable",
+          key: "weapons",
+          defaultRows: [
+            { name: "", skill: "", attack: 0, damage: "", ability: "" },
+            { name: "", skill: "", attack: 0, damage: "", ability: "" },
+          ],
+          slots: ["Mão", "Mão Inábil"],
+          columns: [
+            { key: "name", label: "Nome", type: "text" },
+            { key: "skill", label: "Perícia", type: "text" },
+            { key: "attack", label: "Ataque", type: "number", default: 0 },
+            { key: "damage", label: "Dano", type: "text" },
+            { key: "ability", label: "Habilidade", type: "text", wide: true },
+          ],
+        },
+        {
+          title: "Armadura",
+          type: "fixedTable",
+          key: "armor",
+          defaultRows: [
+            { name: "", arm: 0, armag: 0, eva: 0, evamag: 0, ability: "" },
+            { name: "", arm: 0, armag: 0, eva: 0, evamag: 0, ability: "" },
+            { name: "", arm: 0, armag: 0, eva: 0, evamag: 0, ability: "" },
+            { name: "", arm: 0, armag: 0, eva: 0, evamag: 0, ability: "" },
+            { name: "", arm: 0, armag: 0, eva: 0, evamag: 0, ability: "" },
+          ],
+          slots: ["Cabeça", "Corpo", "Mãos", "Acessório 1", "Acessório 2"],
+          columns: [
+            { key: "name", label: "Nome", type: "text" },
+            { key: "arm", label: "ARM", type: "number", default: 0 },
+            { key: "armag", label: "ARM. M.", type: "number", default: 0 },
+            { key: "eva", label: "EVA", type: "number", default: 0 },
+            { key: "evamag", label: "EVA. M.", type: "number", default: 0 },
+            { key: "ability", label: "Habilidade", type: "text", wide: true },
+          ],
+        },
+        {
+          title: "Perícias",
+          type: "repeatable",
+          tab: "skills",
+          key: "skills",
+
+          columns: [
+            { key: "name", label: "Perícia", type: "text" },
+            { key: "points", label: "Pontos", type: "number", default: 0 },
+            { key: "category", label: "Categoria", type: "text" },
+          ],
+        },
+        {
+          title: "Habilidades e magias",
+          type: "repeatable",
+          tab: "skills",
+          key: "abilities",
+
+          columns: [
+            { key: "name", label: "Nome", type: "text" },
+            { key: "level", label: "Nível", type: "number", default: 1 },
+            { key: "type", label: "Tipo", type: "text" },
+            { key: "cost", label: "MP/TC", type: "text" },
+            { key: "target", label: "Alvo", type: "text" },
+            { key: "effect", label: "Efeito", type: "text", wide: true },
+          ],
+        },
+        {
+          title: "Inventário e anotações",
+          tab: "inventory",
+          cols: 1,
+          fields: [{ key: "notes", label: "", type: "textarea", rows: 4 }],
+        },
+        {
+          title: "Vantagens e Desvantagens",
+          type: "advantages",
+          tab: "background",
+          advantagesKey: "advantages",
+          disadvantagesKey: "disadvantages",
+          columns: [
+            { key: "name", label: "Nome", type: "text" },
+            { key: "points", label: "Pontos", type: "number", default: 0 },
+          ],
+        },
+        {
+          title: "Descrição do Personagem",
+          tab: "background",
+          cols: 2,
+          fields: [
+            { key: "backgroundAge", label: "Idade", type: "text" },
+            { key: "backgroundEyes", label: "Olhos", type: "text" },
+            { key: "backgroundHair", label: "Cabelo", type: "text" },
+            { key: "backgroundHeight", label: "Altura", type: "text" },
+            {
+              key: "backgroundAppearance",
+              label: "Descrição da Aparência",
+              type: "textarea",
+              rows: 3,
+            },
+            {
+              key: "backgroundObjective",
+              label: "Objetivo",
+              type: "textarea",
+              rows: 3,
+            },
+            {
+              key: "backgroundStory",
+              label: "Background",
+              type: "textarea",
+              rows: 6,
+            },
+          ],
+        },
+      ];
+
+      /* ===================== ESTADO / REDE ===================== */
+      let ws,
+        me = null,
+        mapImg = null,
+        openId = null,
+        activeSheetTab = "identity",
+        dragTok = null,
+        panning = null,
+        fogTool = null,
+        fogStroke = null;
+      let state = {
+        grid: {
+          size: 50,
+          ox: 0,
+          oy: 0,
+          opacity: 0.35,
+          color: "#ffffff",
+          show: true,
+        },
+        map: { has: false, scale: 1, ox: 0, oy: 0 },
+        sheets: [],
+        order: [],
+        turn: 0,
+        combat: { active: false, round: 0, phase: "idle", entries: [], cur: 0, effects: [] },
+        fog: { cells: [] },
+      };
+      let view = { z: 1, px: 0, py: 0 };
+      const cv = el("c"),
+        ctx = cv.getContext("2d"),
+        imgCache = {};
+      function el(id) {
+        return document.getElementById(id);
+      }
+      const esc = (s) =>
+        String(s ?? "").replace(
+          /[&<>"]/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c],
+        );
+      const act = (o) =>
+        ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+      const sheet = (id) => state.sheets.find((s) => s.id === id);
+      const canEdit = (s) => me && s && (me.gm || s.owner === me.name);
+
+      function join() {
+        ws = new WebSocket(
+          (location.protocol === "https:" ? "wss://" : "ws://") + location.host,
+        );
+        ws.onopen = () =>
+          ws.send(
+            JSON.stringify({
+              t: "join",
+              name: el("l-name").value,
+              role: el("l-role").value,
+              pass: el("l-pass").value,
+            }),
+          );
+        ws.onmessage = (e) => {
+          const m = JSON.parse(e.data);
+          if (m.t === "error") el("l-err").textContent = m.msg;
+          if (m.t === "joined") {
+            me = m.user;
+            el("login").style.display = "none";
+            document
+              .querySelectorAll(".gm-only")
+              .forEach((n) => (n.style.display = me.gm ? "block" : "none"));
+          }
+          if (m.t === "mapimg") {
+            if (!m.src) {
+              mapImg = null;
+              draw();
+            } else {
+              const first = !mapImg;
+              mapImg = new Image();
+              mapImg.onload = () => {
+                if (first) fitView();
+                draw();
+                refreshGM();
+              };
+              mapImg.src = m.src;
+            }
+          }
+          if (m.t === "state") {
+            state = m.state;
+            if (!state.fog || !Array.isArray(state.fog.cells)) state.fog = { cells: [] };
+            refresh();
+          }
+          if (m.t === "log") {
+            const l = el("log");
+            l.innerHTML += m.msg + "<br>";
+            l.scrollTop = l.scrollHeight;
+          }
+          if (m.t === "chat") {
+            const l = el("log"),
+              line = document.createElement("div"),
+              heading = document.createElement("b");
+            heading.textContent = `${m.sender} · ${m.character} · ${m.item}: `;
+            line.append(heading, document.createTextNode(m.text));
+            l.appendChild(line);
+            l.scrollTop = l.scrollHeight;
+          }
+        };
+        ws.onclose = () => {
+          el("log").innerHTML += "Conexão perdida. Recarregue a página.<br>";
+        };
+      }
+
+      /* ===================== DADOS ===================== */
+      const rollN = (sides) => act({ t: "roll", qty: 1, sides, mod: 0 });
+      function rollFormula() {
+        const m = el("formula")
+          .value.replace(/\s/g, "")
+          .match(/^(\d+)d(\d+)([+-]\d+)?$/i);
+        if (!m) {
+          el("log").innerHTML += "Fórmula inválida. Ex: 2d6+3<br>";
+          return;
+        }
+        act({ t: "roll", qty: +m[1], sides: +m[2], mod: +(m[3] || 0) });
+      }
+      function rollCheck(id, key) {
+        const s = sheet(id);
+        act({
+          t: "roll",
+          ...checkFormula(+(s.data[key] ?? 0)),
+          label: `${s.name} (${key})`,
+        });
+      }
+
+      /* ===================== CÂMERA E MAPA ===================== */
+      function resize() {
+        const s = el("stage");
+        cv.width = s.clientWidth;
+        cv.height = s.clientHeight;
+        draw();
+      }
+      function fitView() {
+        // enquadra o mapa inteiro na tela (só para quem clicou)
+        const m = state.map,
+          w = mapImg ? mapImg.naturalWidth * m.scale : 1600,
+          h = mapImg ? mapImg.naturalHeight * m.scale : 1000;
+        view.z = Math.min(cv.width / w, cv.height / h, 2);
+        view.px = (cv.width - w * view.z) / 2 - m.ox * view.z;
+        view.py = (cv.height - h * view.z) / 2 - m.oy * view.z;
+        draw();
+      }
+      function zoomBy(f, cx = cv.width / 2, cy = cv.height / 2) {
+        const nz = Math.min(6, Math.max(0.1, view.z * f));
+        view.px = cx - ((cx - view.px) * nz) / view.z;
+        view.py = cy - ((cy - view.py) * nz) / view.z;
+        view.z = nz;
+        draw();
+      }
+      function fitMap() {
+        // mestre: reduz/aumenta a imagem para caber na área visível
+        if (!mapImg) return;
+        const s = Math.min(
+          cv.width / mapImg.naturalWidth,
+          cv.height / mapImg.naturalHeight,
+        );
+        act({ t: "map", scale: s, ox: 0, oy: 0 });
+        setTimeout(fitView, 150);
+      }
+      function calibrate() {
+        // casa a grade com a imagem: tamanho = largura da imagem / nº de quadrados
+        if (!mapImg) return;
+        const cols = Math.max(1, +el("g-cols").value);
+        act({
+          t: "grid",
+          size: (mapImg.naturalWidth * state.map.scale) / cols,
+          ox: state.map.ox,
+          oy: state.map.oy,
+        });
+      }
+      function pickMap() {
+        const i = document.createElement("input");
+        i.type = "file";
+        i.accept = "image/*";
+        i.onchange = () => {
+          const r = new FileReader();
+          r.onload = () => act({ t: "mapimg", src: r.result });
+          r.readAsDataURL(i.files[0]);
+        };
+        i.click();
+      }
+
+      /* ===================== DESENHO ===================== */
+      function getImg(s) {
+        if (!s.img) return null;
+        let c = imgCache[s.id];
+        if (!c || c._src !== s.img) {
+          c = new Image();
+          c._src = s.img;
+          c.onload = draw;
+          c.src = s.img;
+          imgCache[s.id] = c;
+        }
+        return c;
+      }
+      function draw() {
+        const g = state.grid,
+          m = state.map;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = "#0f1a45";
+        ctx.fillRect(0, 0, cv.width, cv.height);
+        ctx.setTransform(view.z, 0, 0, view.z, view.px, view.py);
+        if (mapImg && mapImg.complete)
+          ctx.drawImage(
+            mapImg,
+            m.ox,
+            m.oy,
+            mapImg.naturalWidth * m.scale,
+            mapImg.naturalHeight * m.scale,
+          );
+        // Névoa: apenas os quadrados marcados são armazenados e desenhados.
+        const fogCells = new Set((state.fog?.cells || []).map(c => `${c.x},${c.y}`));
+        ctx.save();
+        ctx.fillStyle = me?.gm ? "rgba(0,0,0,0.48)" : "#050609";
+        for (const key of fogCells) {
+          const [x, y] = key.split(",").map(Number);
+          ctx.fillRect(g.ox + x * g.size, g.oy + y * g.size, g.size, g.size);
+        }
+        if (fogStroke) {
+          ctx.fillStyle = fogStroke.op === "paint" ? "rgba(0,0,0,0.58)" : "rgba(80,190,255,0.28)";
+          for (const key of fogStroke.cells) {
+            const [x, y] = key.split(",").map(Number);
+            ctx.fillRect(g.ox + x * g.size, g.oy + y * g.size, g.size, g.size);
+          }
+        }
+        ctx.restore();
+        if (g.show) {
+          const x0 = -view.px / view.z,
+            x1 = (cv.width - view.px) / view.z,
+            y0 = -view.py / view.z,
+            y1 = (cv.height - view.py) / view.z;
+          ctx.globalAlpha = g.opacity;
+          ctx.strokeStyle = g.color;
+          ctx.lineWidth = 1 / view.z;
+          ctx.beginPath();
+          for (
+            let x = g.ox + Math.floor((x0 - g.ox) / g.size) * g.size;
+            x <= x1;
+            x += g.size
+          ) {
+            ctx.moveTo(x, y0);
+            ctx.lineTo(x, y1);
+          }
+          for (
+            let y = g.oy + Math.floor((y0 - g.oy) / g.size) * g.size;
+            y <= y1;
+            y += g.size
+          ) {
+            ctx.moveTo(x0, y);
+            ctx.lineTo(x1, y);
+          }
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+        const curId = combatCurId();
+        state.sheets
+          .filter((s) => s.onMap && (me?.gm || !fogCells.has(`${s.x},${s.y}`)))
+          .forEach((s) => {
+            const cx = g.ox + s.x * g.size + g.size / 2,
+              cy = g.oy + s.y * g.size + g.size / 2,
+              r = g.size * 0.45,
+              im = getImg(s);
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, 7);
+            ctx.clip();
+            if (im && im.complete && im.naturalWidth)
+              ctx.drawImage(im, cx - r, cy - r, r * 2, r * 2);
+            else {
+              ctx.fillStyle = s.color;
+              ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+              ctx.fillStyle = "#fff";
+              ctx.font = `bold ${r}px Georgia`;
+              ctx.textAlign = "center";
+              ctx.fillText(s.name[0] || "?", cx, cy + r * 0.35);
+            }
+            ctx.restore();
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, 7);
+            ctx.lineWidth = s.id === curId ? 5 / view.z + 1 : 3;
+            ctx.strokeStyle = s.id === curId ? "#e8c66a" : s.color;
+            ctx.stroke();
+            ctx.fillStyle = "#000a";
+            ctx.fillRect(cx - r, cy + r + 2, r * 2, g.size * 0.09);
+            ctx.fillStyle = "#d9534f";
+            ctx.fillRect(
+              cx - r,
+              cy + r + 2,
+              r * 2 * Math.max(0, Math.min(1, s.hp / (s.maxHp || 1))),
+              g.size * 0.09,
+            );
+          });
+      }
+      const toWorld = (mx, my) => [
+        (mx - view.px) / view.z,
+        (my - view.py) / view.z,
+      ];
+      const cellOf = (wx, wy) => [
+        Math.floor((wx - state.grid.ox) / state.grid.size),
+        Math.floor((wy - state.grid.oy) / state.grid.size),
+      ];
+      const tokenAt = (mx, my) => {
+        const [c, r] = cellOf(...toWorld(mx, my));
+        return [...state.sheets]
+          .reverse()
+          .find((s) => s.onMap && s.x === c && s.y === r);
+      };
+      function setFogTool(tool) {
+        if (!me?.gm) return;
+        fogTool = tool;
+        ["fog-paint", "fog-reveal"].forEach(id => el(id)?.classList.remove("on"));
+        if (tool === "paint") el("fog-paint")?.classList.add("on");
+        if (tool === "reveal") el("fog-reveal")?.classList.add("on");
+        cv.style.cursor = tool ? "crosshair" : "grab";
+      }
+      function addFogCell(cells, x, y) {
+        if (Number.isSafeInteger(x) && Number.isSafeInteger(y)) cells.add(`${x},${y}`);
+      }
+      // Interpola os quadrados entre eventos do mouse para não deixar falhas ao arrastar rápido.
+      function traceFog(from, to, cells) {
+        let [x0, y0] = from, [x1, y1] = to;
+        const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+        const dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        let err = dx + dy;
+        while (true) {
+          addFogCell(cells, x0, y0);
+          if (x0 === x1 && y0 === y1) break;
+          const e2 = 2 * err;
+          if (e2 >= dy) { err += dy; x0 += sx; }
+          if (e2 <= dx) { err += dx; y0 += sy; }
+        }
+      }
+      function fogPointerCell(e) { return cellOf(...toWorld(e.offsetX, e.offsetY)); }
+      function commitFogStroke() {
+        if (!fogStroke) return;
+        const cells = [...fogStroke.cells].slice(0, 5000).map(key => {
+          const [x, y] = key.split(",").map(Number); return { x, y };
+        });
+        if (cells.length) act({ t: "fog", op: fogStroke.op, cells });
+        fogStroke = null;
+        draw();
+      }
+      function clearFog() {
+        if (!me?.gm) return;
+        act({ t: "fog", op: "clear" });
+      }
+      cv.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        if (me?.gm && fogTool) {
+          const cell = fogPointerCell(e);
+          fogStroke = { op: fogTool, cells: new Set(), last: cell };
+          addFogCell(fogStroke.cells, cell[0], cell[1]);
+          draw();
+          e.preventDefault();
+          return;
+        }
+        const t = tokenAt(e.offsetX, e.offsetY);
+        if (t && canEdit(t)) dragTok = t;
+        else panning = { x: e.offsetX, y: e.offsetY, px: view.px, py: view.py };
+      });
+      cv.addEventListener("mousemove", (e) => {
+        if (fogStroke) {
+          const cell = fogPointerCell(e);
+          traceFog(fogStroke.last || cell, cell, fogStroke.cells);
+          fogStroke.last = cell;
+          draw();
+        } else if (dragTok) {
+          [dragTok.x, dragTok.y] = cellOf(...toWorld(e.offsetX, e.offsetY));
+          draw();
+        } else if (panning) {
+          view.px = panning.px + e.offsetX - panning.x;
+          view.py = panning.py + e.offsetY - panning.y;
+          draw();
+        }
+      });
+      addEventListener("mouseup", () => {
+        if (fogStroke) commitFogStroke();
+        if (dragTok) {
+          act({ t: "move", id: dragTok.id, x: dragTok.x, y: dragTok.y });
+          dragTok = null;
+        }
+        panning = null;
+      });
+      cv.addEventListener("dblclick", (e) => {
+        const t = tokenAt(e.offsetX, e.offsetY);
+        if (t) {
+          activeSheetTab = "identity";
+          openId = t.id;
+          renderModal();
+        }
+      });
+      cv.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          zoomBy(e.deltaY < 0 ? 1.1 : 0.9, e.offsetX, e.offsetY);
+        },
+        { passive: false },
+      );
+
+      /* ===================== PAINEL ===================== */
+      function tab(n) {
+        ["main", "sheets"].forEach((t) =>
+          el("tab-" + t).classList.toggle("on", t === n),
+        );
+        document
+          .querySelectorAll("#tabs button")
+          .forEach((b, i) =>
+            b.classList.toggle("on", ["main", "sheets"][i] === n),
+          );
+      }
+      function refresh() {
+        renderCombat();
+        renderSheets();
+        renderModal();
+        refreshGM();
+        draw();
+      }
+
+      /* ===================== JANELA DE COMBATE ===================== */
+      const PHASES = { initiative: "1. Iniciativa", action: "2. Ação", status: "3. Status" };
+      const BUFFS = ["haste", "protect", "shell", "regen", "reflect", "berserk"];
+      const DEBUFFS = ["slow", "poison", "blind", "silence", "sleep", "stop", "confuse", "bio"];
+      let cwTab = "init", cwMin = false;
+      const combatCurId = () => {
+        const c = state.combat;
+        return c && c.active && c.phase === "action" && c.entries[c.cur] ? c.entries[c.cur].id : undefined;
+      };
+      const cwShow = (t) => { cwTab = t; renderCombat(); };
+      const cwToggle = () => { cwMin = !cwMin; renderCombat(); };
+      const typing = (id) => { const a = document.activeElement; return a && a.tagName === "INPUT" && el(id).contains(a); };
+      function guessKind() {
+        const n = el("cw-name").value.trim().toLowerCase();
+        if (BUFFS.some((b) => n.startsWith(b))) el("cw-kind").value = "buff";
+        else if (DEBUFFS.some((b) => n.startsWith(b))) el("cw-kind").value = "debuff";
+      }
+      function addEffect() {
+        const n = el("cw-name").value.trim(), t = el("cw-target").value;
+        if (!n || !t) return;
+        act({ t: "cb_effAdd", sheetId: +t, name: n, kind: el("cw-kind").value, timer: +el("cw-timer").value || 4 });
+        el("cw-name").value = "";
+      }
+      function ctrlHTML(c) {
+        const b = (l, a) => `<button onclick="${a}">${l}</button>`;
+        if (!c.active)
+          return me.gm ? b("⚔ Iniciar combate", "act({t:'cb_start'})") : "<small>Aguardando o mestre iniciar o combate.</small>";
+        const cur = c.entries[c.cur], out = [];
+        if (me.gm) {
+          if (c.phase === "initiative") out.push(b("🎲 Rolar todos", "act({t:'cb_roll',all:true})"), b("Fase de Ação ▶", "act({t:'cb_phase'})"));
+          if (c.phase === "action") out.push(b("◀", "act({t:'cb_prev'})"), b("Encerrar turno ▶", "act({t:'cb_next'})"), b("Ir ao Status ▶▶", "act({t:'cb_phase'})"));
+          if (c.phase === "status") out.push(b("Reduzir timers", "act({t:'cb_tick'})"), b("Nova rodada ▶", "act({t:'cb_phase'})"));
+          out.push(b("Encerrar combate", "if(confirm('Encerrar o combate?'))act({t:'cb_end'})"));
+        } else if (c.phase === "action" && cur && canEdit(sheet(cur.id))) out.push(b("Encerrar meu turno ▶", "act({t:'cb_next'})"));
+        return out.join("");
+      }
+      function listHTML(c) {
+        if (!c.active) return "<small>Nenhum combate em andamento.</small>";
+        if (!c.entries.length) return "<small>Coloque fichas no mapa para entrarem no combate.</small>";
+        return c.entries.map((e, i) => {
+          const s = sheet(e.id); if (!s) return "";
+          const ok = canEdit(s), cur = c.phase === "action" && i === c.cur;
+          const badges = c.effects.filter((f) => f.sheetId === s.id)
+            .map((f) => `<span class="cweff ${f.kind}">${f.kind === "buff" ? "▲" : "▼"} ${esc(f.name)} ${f.timer}</span>`).join("");
+          const init = me.gm
+            ? `<input type="number" class="initin" value="${e.init ?? ""}" placeholder="—" onchange="act({t:'cb_init',id:${s.id},v:this.value})">`
+            : `<b>${e.init ?? "—"}</b>`;
+          const roll = c.phase === "initiative" && ok ? `<button title="VEL ${e.spd} + 1d10" onclick="act({t:'cb_roll',id:${s.id}})">🎲</button>` : "";
+          const chk = (k, l, t) => `<label title="${t}"><input type="checkbox" ${e[k] ? "checked" : ""} ${ok ? "" : "disabled"} onchange="act({t:'cb_act',id:${s.id},k:'${k}',v:this.checked})">${l}</label>`;
+          const acts = c.phase === "action" ? chk("std", "P", "Ação Padrão") + chk("mov", "M", "Ação de Movimento") : "";
+          return `<div class="crow${cur ? " cur" : ""}"><div class="cmain">${s.img ? `<img src="${s.img}">` : `<div class="ph"></div>`}
+            <div class="cname"><b>${esc(s.name)}</b><small>VEL ${e.spd}${e.roll != null ? ` · d10: ${e.roll}` : ""}</small></div>${init}${roll}${acts}</div>
+            ${badges ? `<div class="badges">${badges}</div>` : ""}</div>`;
+        }).join("");
+      }
+      function effHTML(c) {
+        if (!c.active) return "<small>Inicie o combate para aplicar buffs/debuffs.</small>";
+        const html = c.entries.map((e) => {
+          const s = sheet(e.id), fx = c.effects.filter((f) => f.sheetId === e.id);
+          if (!s || !fx.length) return "";
+          return `<div class="crow"><b>${esc(s.name)}</b>${fx.map((f) => {
+            const ok = me.gm || canEdit(s) || f.by === me.name;
+            return `<div class="cwfx ${f.kind}"><span>${f.kind === "buff" ? "▲" : "▼"} ${esc(f.name)}</span><span class="tm">
+              ${ok ? `<button onclick="act({t:'cb_effSet',uid:${f.uid},timer:${f.timer - 1}})">−</button>` : ""}${f.timer}
+              ${ok ? `<button onclick="act({t:'cb_effSet',uid:${f.uid},timer:${f.timer + 1}})">+</button><button onclick="act({t:'cb_effDel',uid:${f.uid}})">✕</button>` : ""}</span></div>`;
+          }).join("")}</div>`;
+        }).join("");
+        return html || "<small>Nenhum efeito ativo.</small>";
+      }
+      function renderCombat() {
+        const c = state.combat, box = el("cwin");
+        if (!c || !me) return;
+        box.style.display = "flex";
+        el("cw-body").style.display = cwMin ? "none" : "block";
+        el("cw-min").textContent = cwMin ? "▢" : "–";
+        el("cw-title").textContent = c.active ? `⚔ Rodada ${c.round}` : "⚔ Combate";
+        el("cw-t-init").classList.toggle("on", cwTab === "init");
+        el("cw-t-eff").classList.toggle("on", cwTab === "eff");
+        el("cw-init").style.display = cwTab === "init" ? "block" : "none";
+        el("cw-eff").style.display = cwTab === "eff" ? "block" : "none";
+        el("cw-phases").innerHTML = c.active ? Object.entries(PHASES).map(([k, v]) => `<span class="ph-pill${c.phase === k ? " on" : ""}">${v}</span>`).join("") : "";
+        el("cw-ctrl").innerHTML = ctrlHTML(c);
+        if (!typing("cw-list")) el("cw-list").innerHTML = listHTML(c);
+        const sel = el("cw-target");
+        if (document.activeElement !== sel) {
+          const old = sel.value;
+          sel.innerHTML = c.entries.map((e) => { const s = sheet(e.id); return `<option value="${e.id}">${esc(s ? s.name : "?")}</option>`; }).join("");
+          if (old) sel.value = old;
+        }
+        el("cw-efflist").innerHTML = effHTML(c);
+      }
+      (function () { // janela arrastável pelo título
+        const h = el("cw-head"), w = el("cwin"); let d = null;
+        h.addEventListener("mousedown", (e) => {
+          if (e.target.tagName === "BUTTON") return;
+          const r = w.getBoundingClientRect(), p = w.offsetParent.getBoundingClientRect();
+          d = { dx: e.clientX - r.left, dy: e.clientY - r.top, px: p.left, py: p.top };
+        });
+        addEventListener("mousemove", (e) => {
+          if (!d) return;
+          w.style.left = Math.max(0, e.clientX - d.px - d.dx) + "px";
+          w.style.top = Math.max(0, e.clientY - d.py - d.dy) + "px";
+          w.style.right = "auto";
+        });
+        addEventListener("mouseup", () => (d = null));
+      })();
+
+      function renderSheets() {
+        const box = el("sheetlist");
+        box.innerHTML = "";
+        state.sheets.forEach((s) => {
+          const ok = canEdit(s),
+            d = document.createElement("div");
+          d.className = "scard" + (s.onMap ? " onmap" : "");
+          d.innerHTML = `${s.img ? `<img src="${s.img}">` : `<div class="ph"></div>`}
+         <div class="info"><b>${esc(s.name)}</b><br><small>${esc(s.owner)} · HP ${s.hp}/${s.maxHp} · MP ${s.mp}/${s.maxMp}</small></div>
+         <div><button onclick="activeSheetTab='identity';openId=${s.id};renderModal()">Abrir</button>
+         ${ok ? `<br><button onclick="act({t:'toggleMap',id:${s.id}})">${s.onMap ? "Remover" : "Colocar"}</button>` : ""}</div>`;
+          box.appendChild(d);
+        });
+      }
+      function setVal(id, v) {
+        const e = el(id);
+        if (document.activeElement !== e) {
+          e.type === "checkbox" ? (e.checked = v) : (e.value = v);
+        }
+      }
+      function refreshGM() {
+        if (!me || !me.gm) return;
+        const g = state.grid,
+          m = state.map;
+        setVal("m-scale", Math.round(m.scale * 100));
+        el("m-scale-v").textContent = Math.round(m.scale * 100) + "%";
+        setVal("m-ox", m.ox);
+        setVal("m-oy", m.oy);
+        setVal("g-show", g.show);
+        setVal("g-color", g.color);
+        setVal("g-op", Math.round(g.opacity * 100));
+        setVal("g-size", +g.size.toFixed(2));
+        setVal("g-ox", g.ox);
+        setVal("g-oy", g.oy);
+      }
+
+      /* ===================== FICHA (POPUP) ===================== */
+      function closeSheet() {
+        openId = null;
+        el("modal").style.display = "none";
+      }
+      function fieldHTML(s, f, dis, ok) {
+        const v = s.data[f.key] ?? f.default ?? "",
+          lbl = f.label ? `<span>${esc(f.label)}</span>` : "";
+        const set = `setData(${s.id},'${f.key}',this.value,${f.type === "number"})`;
+        if (f.type === "textarea")
+          return `<label style="grid-column:1/-1">${lbl}<textarea data-field-key="${f.key}" rows="${f.rows || 3}" ${f.formula ? "readonly" : dis} ${f.formula ? "" : `oninput="updateCalculatedCells(this)" onchange="${set}"`}>${esc(v)}</textarea></label>`;
+        return `<label>${lbl}<span class="ctl"><input data-field-key="${f.key}" type="${f.type === "number" ? "number" : "text"}" value="${esc(v)}" ${f.formula ? "readonly" : dis} ${f.formula ? "" : `oninput="updateCalculatedCells(this)" onchange="${set}"`}></span></label>`;
+      }
+      function repeatableRows(s, sec) {
+        return Array.isArray(s.data[sec.key])
+          ? s.data[sec.key]
+          : sec.defaultRows || [];
+      }
+
+      function repeatableSection(tableKey) {
+        const section = SHEET_LAYOUT.find(
+          (item) => item.type === "repeatable" && item.key === tableKey,
+        );
+        if (section) return section;
+
+        const advantages = SHEET_LAYOUT.find(
+          (item) => item.type === "advantages",
+        );
+        if (
+          advantages &&
+          [advantages.advantagesKey, advantages.disadvantagesKey].includes(
+            tableKey,
+          )
+        ) {
+          return {
+            type: "repeatable",
+            key: tableKey,
+            columns: advantages.columns,
+          };
+        }
+        return null;
+      }
+
+      function fixedTableRows(s, sec) {
+        const savedRows = Array.isArray(s.data[sec.key]) ? s.data[sec.key] : [];
+        return sec.defaultRows.map((defaults, index) => ({
+          ...defaults,
+          ...(savedRows[index] || {}),
+        }));
+      }
+
+      function calculatedTableRow(columns, row, data, s) {
+        const values = { ...row };
+        columns.forEach((column) => {
+          if (!column.formula) return;
+          const value = column.formula(values, data, s);
+          if (column.type === "number") {
+            const number = Number(value);
+            values[column.key] = Number.isFinite(number) ? number : 0;
+          } else {
+            values[column.key] = String(value ?? "");
+          }
+        });
+        return values;
+      }
+
+      function updateCalculatedCells(input) {
+        const s = sheet(openId);
+        if (!s) return;
+        const data = { ...s.data };
+        const modal = el("modal");
+
+        modal.querySelectorAll("[data-field-key]").forEach((field) => {
+          const key = field.dataset.fieldKey;
+          const config = SHEET_LAYOUT.flatMap(
+            (section) => section.fields || [],
+          ).find((item) => item.key === key);
+          data[key] =
+            config?.type === "number" ? Number(field.value) || 0 : field.value;
+        });
+
+        const tableKeys = new Set(
+          [...modal.querySelectorAll("[data-table-key]")].map(
+            (cell) => cell.dataset.tableKey,
+          ),
+        );
+        const sections = [];
+        for (const key of tableKeys) {
+          const section =
+            SHEET_LAYOUT.find(
+              (item) =>
+                ["fixedTable", "repeatable"].includes(item.type) &&
+                item.key === key,
+            ) || repeatableSection(key);
+          if (!section) continue;
+          const rows =
+            section.type === "fixedTable"
+              ? fixedTableRows(s, section)
+              : repeatableRows(s, section).map((row) => ({ ...row }));
+          modal
+            .querySelectorAll(`[data-table-key="${key}"][data-row-index]`)
+            .forEach((cell) => {
+              const row = rows[Number(cell.dataset.rowIndex)];
+              if (!row) return;
+              const column = section.columns.find(
+                (item) => item.key === cell.dataset.columnKey,
+              );
+              if (!column) return;
+              row[column.key] =
+                column.type === "number" ? Number(cell.value) || 0 : cell.value;
+            });
+          data[key] = rows;
+          sections.push(section);
+        }
+
+        sections.forEach((section) => {
+          if (!section.columns.some((column) => column.formula)) return;
+          data[section.key] = data[section.key].map((row, rowIndex) => {
+            const computed = calculatedTableRow(section.columns, row, data, s);
+            section.columns
+              .filter((column) => column.formula)
+              .forEach((column) => {
+                const cell = modal.querySelector(
+                  `[data-table-key="${section.key}"][data-row-index="${rowIndex}"][data-column-key="${column.key}"]`,
+                );
+                if (cell) cell.value = computed[column.key];
+              });
+            return computed;
+          });
+        });
+
+        SHEET_LAYOUT.flatMap((section) => section.fields || [])
+          .filter((field) => field.formula)
+          .forEach((field) => {
+            const cell = modal.querySelector(`[data-field-key="${field.key}"]`);
+            if (!cell) return;
+            const value = field.formula(data, s);
+            cell.value =
+              field.type === "number"
+                ? Number.isFinite(Number(value))
+                  ? Number(value)
+                  : 0
+                : String(value ?? "");
+            data[field.key] = cell.value;
+          });
+      }
+
+      function repeatableTableHTML(s, sec, dis, ok) {
+        const rows = repeatableRows(s, sec).map((row) =>
+          calculatedTableRow(sec.columns, row, s.data, s),
+        );
+        const columns = sec.columns.filter((column) => !column.wide);
+        const wideColumns = sec.columns.filter((column) => column.wide);
+
+        return `
+           <div class="table-wrapper">
+               <table class="attributes-table">
+                   <thead>
+                       <tr>
+                           ${columns.map((c) => `<th>${c.label}</th>`).join("")}
+                           <th>Ações</th>
+                       </tr>
+                   </thead>
+
+                   <tbody>
+                       ${rows
+                         .map(
+                           (row, index) => `
+                           <tr>
+                               ${columns
+                                 .map(
+                                   (c) => `
+                                   <td>
+                                       <input
+                                           type="${c.type === "number" ? "number" : "text"}"
+                                           data-table-key="${sec.key}"
+                                           data-row-index="${index}"
+                                           data-column-key="${c.key}"
+                                           value="${esc(row[c.key] ?? c.default ?? "")}"
+                                           ${c.formula ? "readonly" : dis}
+                                           ${!c.formula || (c.key === "points" && ["advantages", "disadvantages"].includes(sec.key)) ? `oninput="${[!c.formula ? "updateCalculatedCells(this)" : "", c.key === "points" && ["advantages", "disadvantages"].includes(sec.key) ? "updateAdvantageBalance()" : ""].filter(Boolean).join(";")}"` : ""}
+                                           ${
+                                             c.formula
+                                               ? ""
+                                               : `onchange="updateTableCell(
+                                               ${s.id},
+                                               '${sec.key}',
+                                               ${index},
+                                               '${c.key}',
+                                               this.value,
+                                               ${c.type === "number"}
+                                           )"`
+                                           }
+                                       >
+                                   </td>
+                               `,
+                                 )
+                                 .join("")}
+
+                               <td>
+                                   ${
+                                     ok
+                                       ? `
+                                       <button
+                                           onclick="removeTableRow(${s.id},'${sec.key}',${index})"
+                                           title="Remover linha"
+                                       >✕</button>
+                                   `
+                                       : ""
+                                   }
+                               </td>
+                           </tr>
+                           ${wideColumns
+                             .map(
+                               (column) => `
+                             <tr>
+                               <td class="table-wide" colspan="${columns.length + 1}">
+                                 <div class="table-share">
+                                   <textarea rows="3" placeholder="${column.label}" data-table-key="${sec.key}" data-row-index="${index}" data-column-key="${column.key}" ${column.formula ? "readonly" : dis}
+                                     ${column.formula ? "" : `oninput="updateCalculatedCells(this)" onchange="updateTableCell(${s.id},'${sec.key}',${index},'${column.key}',this.value,false)"`}>${esc(row[column.key] ?? column.default ?? "")}</textarea>
+                                   ${ok ? `<button onclick="shareDescription(${s.id},'${sec.key}',${index},'${column.key}',this.previousElementSibling.value)">Enviar ao chat</button>` : ""}
+                                 </div>
+                               </td>
+                             </tr>
+                           `,
+                             )
+                             .join("")}
+                       `,
+                         )
+                         .join("")}
+                   </tbody>
+               </table>
+           </div>
+
+           ${
+             ok
+               ? `
+               <button
+                   class="add-table-row"
+                   onclick="addTableRow(${s.id},'${sec.key}')"
+               >
+                   + Adicionar
+               </button>
+           `
+               : ""
+           }
+         `;
+      }
+
+      function advantagesHTML(s, sec, dis, ok) {
+        const table = (key, title) => `
+          <div class="advantage-column">
+            <h4>${title}</h4>
+            ${repeatableTableHTML(
+              s,
+              { type: "repeatable", key, columns: sec.columns },
+              dis,
+              ok,
+            )}
+          </div>
+        `;
+        return `
+          <div class="advantage-balance">
+            Saldo de pontos: <span id="advantage-balance">${advantageBalance(s)}</span>
+          </div>
+          <div class="advantages-grid">
+            ${table(sec.advantagesKey, "Vantagens")}
+            ${table(sec.disadvantagesKey, "Desvantagens")}
+          </div>
+        `;
+      }
+
+      function unicCell(s, sec, dis, ok) {
+        return `
+                <div class="fgrid" style="grid-template-columns:repeat(${sec.cols || 2},1fr)">
+                    ${sec.fields.map((f) => fieldHTML(s, f, dis, ok)).join("")}
+                </div>
+           `;
+      }
+
+      function advantageBalance(s) {
+        const sum = (key) =>
+          repeatableRows(s, { key }).reduce(
+            (total, row) => total + (Number(row.points) || 0),
+            0,
+          );
+        return sum("disadvantages") - sum("advantages");
+      }
+
+      function updateAdvantageBalance() {
+        const sum = (key) =>
+          [...el("modal").querySelectorAll(`[data-table-key="${key}"]`)].reduce(
+            (total, input) => total + (Number(input.value) || 0),
+            0,
+          );
+        const balance = el("advantage-balance");
+        if (balance)
+          balance.textContent = sum("disadvantages") - sum("advantages");
+      }
+
+      function fixedTableHTML(s, sec, dis) {
+        const rows = fixedTableRows(s, sec).map((row) =>
+          calculatedTableRow(sec.columns, row, s.data, s),
+        );
+        const columns = sec.columns.filter((column) => !column.wide);
+        const wideColumns = sec.columns.filter((column) => column.wide);
+        return `
+          <div class="table-wrapper">
+            <table class="attributes-table">
+              <thead>
+                <tr>
+                  <th></th>
+                  ${columns.map((column) => `<th>${column.label}</th>`).join("")}
+                </tr>
+              </thead>
+              <tbody>
+                ${rows
+                  .map(
+                    (row, index) => `
+                  <tr>
+                    <td class="attribute-name">${esc(sec.slots[index])}</td>
+                    ${columns
+                      .map(
+                        (column) => `
+                      <td>
+                        <input
+                          type="${column.type === "number" ? "number" : "text"}"
+                          data-table-key="${sec.key}"
+                          data-row-index="${index}"
+                          data-column-key="${column.key}"
+                          value="${esc(row[column.key] ?? column.default ?? "")}"
+                          min="${column.min ?? ""}"
+                          max="${column.max ?? ""}"
+                          ${column.formula ? "readonly" : dis}
+                          ${column.formula ? "" : `oninput="updateCalculatedCells(this)" onchange="updateTableCell(${s.id},'${sec.key}',${index},'${column.key}',this.value,${column.type === "number"})"`}
+                        >
+                      </td>
+                    `,
+                      )
+                      .join("")}
+                  </tr>
+                  ${wideColumns
+                    .map(
+                      (column) => `
+                    <tr>
+                      <td></td>
+                      <td class="table-wide" colspan="${columns.length}">
+                        <div class="table-share">
+                          <textarea rows="3" placeholder="${column.label}" data-table-key="${sec.key}" data-row-index="${index}" data-column-key="${column.key}" ${column.formula ? "readonly" : dis}
+                            ${column.formula ? "" : `oninput="updateCalculatedCells(this)" onchange="updateTableCell(${s.id},'${sec.key}',${index},'${column.key}',this.value,false)"`}>${esc(row[column.key] ?? column.default ?? "")}</textarea>
+                          ${canEdit(s) ? `<button onclick="shareDescription(${s.id},'${sec.key}',${index},'${column.key}',this.previousElementSibling.value)">Enviar ao chat</button>` : ""}
+                        </div>
+                      </td>
+                    </tr>
+                  `,
+                    )
+                    .join("")}
+                `,
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      function renderModal() {
+        const box = el("modal"),
+          s = sheet(openId);
+
+        if (!s) {
+          box.style.display = "none";
+          return;
+        }
+
+        if (
+          ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName) &&
+          box.contains(document.activeElement)
+        )
+          return; // não atrapalha quem está digitando
+
+        const ok = canEdit(s),
+          dis = ok ? "" : "disabled",
+          pct = (a, b) => {
+            const current = Number(a) || 0,
+              maximum = Number(b);
+            return Math.max(
+              0,
+              Math.min(
+                100,
+                (100 * current) /
+                  (Number.isFinite(maximum) && maximum > 0 ? maximum : 1),
+              ),
+            );
+          };
+
+        box.style.display = "flex";
+
+        box.innerHTML = `
+       <div class="sheet" style="--accent:${s.color}">
+           <div class="sh-head">
+               <div class="portrait" ${ok ? `onclick="changePortrait(${s.id})"` : ""}>
+                   ${s.img ? `<img src="${s.img}">` : "<span>Clique para<br>escolher imagem</span>"}
+               </div>
+
+               <div class="sh-info">
+                   <input class="big" value="${esc(s.name)}" ${dis}
+                       onchange="setTop(${s.id},'name',this.value)">
+
+                   <div class="row">
+                       Cor
+                       <input type="color" value="${s.color}" ${dis}
+                           onchange="setTop(${s.id},'color',this.value)">
+
+                       ${
+                         me.gm
+                           ? `Dono <input value="${esc(s.owner)}" size="8"
+                               onchange="setTop(${s.id},'owner',this.value)">`
+                           : `<small>Dono: ${esc(s.owner)}</small>`
+                       }
+                   </div>
+
+                   <div class="row">
+                       HP
+                       <input type="number" value="${s.hp}" ${dis}
+                           onchange="setTop(${s.id},'hp',this.value)">
+                       /
+                       <input type="number" value="${s.maxHp}" ${dis}
+                           onchange="setTop(${s.id},'maxHp',this.value)">
+                   </div>
+
+                   <div class="bar">
+                       <i style="width:${pct(s.hp, s.maxHp)}%;background:var(--hp)"></i>
+                   </div>
+
+                   <div class="row">
+                       MP
+                       <input type="number" value="${s.mp}" ${dis}
+                           onchange="setTop(${s.id},'mp',this.value)">
+                       /
+                       <input type="number" value="${s.maxMp}" ${dis}
+                           onchange="setTop(${s.id},'maxMp',this.value)">
+                   </div>
+
+                   <div class="bar">
+                       <i style="width:${pct(s.mp, s.maxMp)}%;background:var(--mp)"></i>
+                   </div>
+                   <div class="row">
+                       XP
+                       <input type="number" value="${s.xp ?? 0}" ${dis}
+                           onchange="setTop(${s.id},'xp',this.value)">
+                       /
+                       <input type="number" value="${s.maxXp ?? 100}" ${dis}
+                           onchange="setTop(${s.id},'maxXp',this.value)">
+                   </div>
+                   <div class="bar">
+                       <i style="width:${pct(s.xp, s.maxXp)}%;background:var(--xp)"></i>
+                   </div>
+               </div>
+
+               <button class="x" onclick="closeSheet()">✕</button>
+           </div>
+
+           <div class="sheet-tabs">
+             <button class="sheet-tab-button${activeSheetTab === "identity" ? " on" : ""}" data-tab="identity" onclick="setSheetTab('identity')">Identidade</button>
+             <button class="sheet-tab-button${activeSheetTab === "skills" ? " on" : ""}" data-tab="skills" onclick="setSheetTab('skills')">Perícias e Habilidades</button>
+             <button class="sheet-tab-button${activeSheetTab === "inventory" ? " on" : ""}" data-tab="inventory" onclick="setSheetTab('inventory')">Inventário e anotações</button>
+             <button class="sheet-tab-button${activeSheetTab === "background" ? " on" : ""}" data-tab="background" onclick="setSheetTab('background')">Background</button>
+           </div>
+           ${["identity", "skills", "inventory", "background"]
+             .map(
+               (tabName) => `
+             <div class="sheet-tab-panel${activeSheetTab === tabName ? " on" : ""}" data-panel="${tabName}">
+               ${SHEET_LAYOUT.filter(
+                 (sec) => (sec.tab || "identity") === tabName,
+               )
+                 .map((sec) => {
+                   // Tabelas que permitem adicionar e remover linhas
+                   if (sec.type === "repeatable") {
+                     return `
+                       <div class="sec">
+                           <h4>${sec.title}</h4>
+                           ${repeatableTableHTML(s, sec, dis, ok)}
+                       </div>
+                   `;
+                   }
+
+                   if (sec.type === "fixedTable") {
+                     return `
+                 <div class="sec">
+                   <h4>${sec.title}</h4>
+                   ${fixedTableHTML(s, sec, dis)}
+                 </div>
+               `;
+                   }
+
+                   if (sec.type === "advantages") {
+                     return `
+                       <div class="sec">
+                         <h4>${sec.title}</h4>
+                         ${advantagesHTML(s, sec, dis, ok)}
+                       </div>
+                     `;
+                   }
+                   if (sec.type === "unic") {
+                     return `
+                       <div class="sec">
+                         <h4>${sec.title}</h4>
+                         ${unicCell(s, sec, dis, ok)}
+                       </div>
+                     `;
+                   }
+                   if (sec.fields) {
+                     return `
+                       <div class="sec">
+                         <h4>${sec.title}</h4>
+                         ${unicCell(s, sec, dis, ok)}
+                       </div>
+                     `;
+                   }
+                   return "";
+                 })
+                 .join("")}
+             </div>
+           `,
+             )
+             .join("")}
+
+           ${
+             ok
+               ? `<div class="row" style="margin-top:14px">
+                       <button onclick="act({t:'toggleMap',id:${s.id}})">
+                           ${s.onMap ? "Remover do mapa" : "Colocar no mapa"}
+                       </button>
+
+                       <button onclick="if(confirm('Excluir esta ficha?')){act({t:'delSheet',id:${s.id}});closeSheet()}">
+                           Excluir ficha
+                       </button>
+                   </div>`
+               : ""
+           }
+           </div>`;
+        updateCalculatedCells(
+          box.querySelector("[data-field-key], [data-table-key]"),
+        );
+      }
+      const setTop = (id, k, v) => act({ t: "set", id, k, v });
+      const setData = (id, k, v, isNum) =>
+        act({ t: "data", id, k, v: isNum ? +v : v });
+      function setSheetTab(tabName) {
+        activeSheetTab = tabName;
+        const modal = el("modal");
+        modal
+          .querySelectorAll(".sheet-tab-button")
+          .forEach((button) =>
+            button.classList.toggle("on", button.dataset.tab === tabName),
+          );
+        modal
+          .querySelectorAll(".sheet-tab-panel")
+          .forEach((panel) =>
+            panel.classList.toggle("on", panel.dataset.panel === tabName),
+          );
+      }
+      function shareDescription(id, tableKey, rowIndex, columnKey, text) {
+        act({
+          t: "share",
+          id,
+          tableKey,
+          rowIndex,
+          columnKey,
+          text,
+        });
+      }
+      // Editar uma célula da tabela
+      function updateTableCell(
+        id,
+        tableKey,
+        rowIndex,
+        columnKey,
+        value,
+        isNum,
+      ) {
+        const s = sheet(id);
+        if (!s) return;
+
+        const sec =
+          SHEET_LAYOUT.find(
+            (section) =>
+              section.type === "fixedTable" && section.key === tableKey,
+          ) || repeatableSection(tableKey);
+        if (!sec) return;
+        const rows = [
+          ...(sec.type === "fixedTable"
+            ? fixedTableRows(s, sec)
+            : repeatableRows(s, sec)),
+        ];
+        if (rowIndex < 0 || rowIndex >= rows.length) return;
+        const column = sec.columns.find((item) => item.key === columnKey);
+        if (!column || column.formula) return;
+
+        rows[rowIndex] = {
+          ...rows[rowIndex],
+          [columnKey]: isNum ? (value === "" ? 0 : +value) : value,
+        };
+        sec.columns
+          .filter((item) => item.formula)
+          .forEach((item) => delete rows[rowIndex][item.key]);
+
+        setData(id, tableKey, rows, false);
+      }
+
+      // Adicionar uma nova linha
+      function addTableRow(id, tableKey) {
+        const s = sheet(id);
+        if (!s) return;
+
+        const sec = repeatableSection(tableKey);
+
+        if (!sec) return;
+
+        const rows = [...repeatableRows(s, sec)];
+
+        const newRow = {};
+
+        sec.columns.forEach((c) => {
+          if (c.formula) return;
+          newRow[c.key] = c.default ?? (c.type === "number" ? 0 : "");
+        });
+
+        rows.push(newRow);
+
+        setData(id, tableKey, rows, false);
+      }
+
+      // Remover uma linha
+      function removeTableRow(id, tableKey, rowIndex) {
+        const s = sheet(id);
+        if (!s) return;
+
+        const sec = repeatableSection(tableKey);
+        if (!sec) return;
+        const rows = [...repeatableRows(s, sec)];
+        if (rowIndex < 0 || rowIndex >= rows.length) return;
+
+        rows.splice(rowIndex, 1);
+
+        setData(id, tableKey, rows, false);
+      }
+      function changePortrait(id) {
+        // redimensiona a imagem para 192x192 antes de enviar
+        const i = document.createElement("input");
+        i.type = "file";
+        i.accept = "image/*";
+        i.onchange = () => {
+          const r = new FileReader();
+          r.onload = () => {
+            const im = new Image();
+            im.onload = () => {
+              const c = document.createElement("canvas");
+              c.width = c.height = 192;
+              const x = c.getContext("2d"),
+                m = Math.min(im.width, im.height);
+              x.drawImage(
+                im,
+                (im.width - m) / 2,
+                (im.height - m) / 2,
+                m,
+                m,
+                0,
+                0,
+                192,
+                192,
+              );
+              act({
+                t: "set",
+                id,
+                k: "img",
+                v: c.toDataURL("image/jpeg", 0.85),
+              });
+            };
+            im.src = r.result;
+          };
+          r.readAsDataURL(i.files[0]);
+        };
+        i.click();
+      }
+
+      addEventListener("resize", resize);
+      addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeSheet();
+      });
+      resize();
+    </script>
+  </body>
+</html>
