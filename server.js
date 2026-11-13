@@ -650,6 +650,46 @@ wss.on('connection', ws => {
     }
 
     switch (m.t) {
+      // ---------- BACKUP / RESTAURAÇÃO DE FICHAS ----------
+      case 'importSheets': {
+        if (!gm) return;
+        const backup = m.backup;
+        if (
+          !backup ||
+          backup.format !== 'vtt-ffrpg-sheets' ||
+          !Array.isArray(backup.sheets) ||
+          backup.sheets.length > 500 ||
+          JSON.stringify(backup).length > 12 * 1024 * 1024
+        ) return send(ws, { t: 'error', msg: 'Backup inválido ou grande demais.' });
+
+        const validSheets = backup.sheets.every(sheet =>
+          sheet &&
+          Number.isSafeInteger(sheet.id) && sheet.id > 0 &&
+          typeof sheet.name === 'string' &&
+          typeof sheet.owner === 'string' &&
+          sheet.data && typeof sheet.data === 'object' && !Array.isArray(sheet.data)
+        );
+        const ids = backup.sheets.map(sheet => sheet.id);
+        if (!validSheets || new Set(ids).size !== ids.length) {
+          return send(ws, { t: 'error', msg: 'O backup contém fichas inválidas ou IDs repetidos.' });
+        }
+
+        // Restaura somente as fichas. Mapa, grade e névoa atuais não são alterados.
+        state.sheets = backup.sheets.map(sheet => ({
+          ...sheet,
+          onMap: !!sheet.onMap,
+          data: sheet.data || {}
+        }));
+        const highestId = ids.length ? Math.max(...ids) : 0;
+        state.nextId = Math.max(highestId + 1, Number(backup.nextId) || 1);
+        state.order = state.order.filter(id => state.sheets.some(sheet => sheet.id === id));
+        state.combat = {
+          active: false, round: 0, phase: 'idle', entries: [], cur: 0,
+          effects: [], nextEff: 1, ticked: false
+        };
+        break;
+      }
+
       // ---------- FOG OF WAR ----------
       case 'fog':
         if (!handleFog(m, ws.user)) return;
@@ -965,7 +1005,7 @@ wss.on('connection', ws => {
 });
 
 // ---------- INICIAR SERVIDOR ----------
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(
     `VTT rodando em http://localhost:${PORT} ` +
     `(senha do mestre: ${GM_PASS})`

@@ -460,7 +460,7 @@
       <select
         id="l-role"
         onchange="
-          el('l-pass').style.display = this.value === 'gm' ? '' : 'none'
+          el('l-pass').style.display = this.value === 'gm' ? '' : 'none'; el('l-import-row').style.display = this.value === 'gm' ? 'flex' : 'none'
         "
       >
         <option value="player">Jogador</option>
@@ -472,6 +472,11 @@
         placeholder="Senha do mestre"
         style="display: none"
       />
+      <div class="row" id="l-import-row" style="display:none;justify-content:center">
+        <button type="button" onclick="el('l-import-file').click()">Selecionar backup das fichas</button>
+        <input id="l-import-file" type="file" accept=".json,application/json" style="display:none" onchange="readBackupBeforeJoin(this)">
+      </div>
+      <small id="l-import-status" style="color:var(--gold)"></small>
       <button onclick="join()">Entrar</button>
       <div id="l-err" style="color: var(--hp)"></div>
     </div>
@@ -652,6 +657,7 @@
       <div class="tab" id="tab-sheets">
         <div class="row">
           <button onclick="act({ t: 'newSheet' })">+ Nova ficha</button>
+          <button class="gm-only" onclick="exportSheetsBackup()">⬇ Backup das fichas</button>
         </div>
         <div id="sheetlist"></div>
       </div>
@@ -1022,7 +1028,52 @@
       const sheet = (id) => state.sheets.find((s) => s.id === id);
       const canEdit = (s) => me && s && (me.gm || s.owner === me.name);
 
+      let pendingSheetsBackup = null;
+
+      function readBackupBeforeJoin(input) {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const backup = JSON.parse(reader.result);
+            if (backup.format !== "vtt-ffrpg-sheets" || !Array.isArray(backup.sheets))
+              throw new Error("Arquivo não é um backup de fichas deste VTT.");
+            pendingSheetsBackup = backup;
+            el("l-import-status").textContent = `${backup.sheets.length} ficha(s) prontas. A importação substituirá as fichas atuais.`;
+          } catch (err) {
+            pendingSheetsBackup = null;
+            el("l-import-status").textContent = err.message || "Não foi possível ler o backup.";
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      function exportSheetsBackup() {
+        if (!me?.gm) return;
+        const backup = {
+          format: "vtt-ffrpg-sheets",
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          sheets: state.sheets,
+          nextId: state.nextId
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `backup-fichas-ffrpg-${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        el("log").innerHTML += "Backup das fichas exportado.<br>";
+      }
+
       function join() {
+        if (el("l-role").value !== "gm" && pendingSheetsBackup) {
+          el("l-err").textContent = "Somente o Mestre pode importar um backup.";
+          return;
+        }
+        if (pendingSheetsBackup && !confirm("Atenção: importar este backup substituirá TODAS as fichas atualmente no servidor. O mapa não será alterado. Deseja continuar?")) return;
         ws = new WebSocket(
           (location.protocol === "https:" ? "wss://" : "ws://") + location.host,
         );
@@ -1037,10 +1088,18 @@
           );
         ws.onmessage = (e) => {
           const m = JSON.parse(e.data);
-          if (m.t === "error") el("l-err").textContent = m.msg;
+          if (m.t === "error") {
+            el("l-err").textContent = m.msg;
+            if (me) el("log").innerHTML += `Erro: ${esc(m.msg)}<br>`;
+          }
           if (m.t === "joined") {
             me = m.user;
             el("login").style.display = "none";
+            if (me.gm && pendingSheetsBackup) {
+              act({ t: "importSheets", backup: pendingSheetsBackup });
+              pendingSheetsBackup = null;
+              el("l-import-status").textContent = "Backup enviado para restauração.";
+            }
             document
               .querySelectorAll(".gm-only")
               .forEach((n) => (n.style.display = me.gm ? "block" : "none"));
