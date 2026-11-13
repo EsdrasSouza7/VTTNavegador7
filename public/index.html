@@ -657,7 +657,7 @@
       <div class="tab" id="tab-sheets">
         <div class="row">
           <button onclick="act({ t: 'newSheet' })">+ Nova ficha</button>
-          <button class="gm-only" onclick="exportSheetsBackup()">⬇ Backup das fichas</button>
+          <button id="backup-sheets-btn" onclick="exportSheetsBackup()">⬇ Backup de todas as fichas</button>
         </div>
         <div id="sheetlist"></div>
       </div>
@@ -1050,22 +1050,30 @@
       }
 
       function exportSheetsBackup() {
-        if (!me?.gm) return;
+        if (!me) return;
+        // Temporariamente, todos os participantes podem exportar todas as fichas da sessão.
+        const sheetsToExport = state.sheets;
+        if (!sheetsToExport.length) {
+          alert("Não há fichas para exportar.");
+          return;
+        }
         const backup = {
           format: "vtt-ffrpg-sheets",
           version: 1,
           exportedAt: new Date().toISOString(),
-          sheets: state.sheets,
-          nextId: state.nextId
+          exportedBy: me.name,
+          sheets: sheetsToExport,
+          nextId: Math.max(Number(state.nextId) || 1, ...sheetsToExport.map((s) => Number(s.id) + 1))
         };
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `backup-fichas-ffrpg-${new Date().toISOString().slice(0,10)}.json`;
+        const safeName = String(me.name || (me.gm ? "mestre" : "jogador")).replace(/[^a-z0-9_-]+/gi, "_");
+        a.download = `backup-fichas-${safeName}-${new Date().toISOString().slice(0,10)}.json`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
-        el("log").innerHTML += "Backup das fichas exportado.<br>";
+        el("log").innerHTML += `${sheetsToExport.length} ficha(s) exportada(s) no backup.<br>`;
       }
 
       function join() {
@@ -1103,6 +1111,8 @@
             document
               .querySelectorAll(".gm-only")
               .forEach((n) => (n.style.display = me.gm ? "block" : "none"));
+            const backupButton = el("backup-sheets-btn");
+            if (backupButton) backupButton.textContent = "⬇ Backup de todas as fichas";
           }
           if (m.t === "mapimg") {
             if (!m.src) {
